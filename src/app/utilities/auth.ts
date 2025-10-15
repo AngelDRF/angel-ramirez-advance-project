@@ -16,6 +16,10 @@ import {
   setGuestLogin,
   setLoggedOut,
 } from "../redux/User";
+import { loadSavedBooks, clearSavedBooks } from "../redux/Library";
+import { clearFinishedBooks } from "../redux/Finished";
+import store from "../redux/Store";
+import { saveStateToLocalStorage } from "../redux/Store";
 
 const provider = new GoogleAuthProvider();
 
@@ -36,6 +40,11 @@ const removeUserFromLocalStorage = () => {
   localStorage.removeItem("loginType");
 };
 
+const loadUserFromLocalStorage = (): any | null => {
+  const user = localStorage.getItem("user");
+  return user ? JSON.parse(user) : null;
+};
+
 export const googleLogin = async (
   dispatch: AppDispatch
 ): Promise<{
@@ -49,25 +58,16 @@ export const googleLogin = async (
       const token = credential.accessToken ?? null;
       const user = result.user;
       const serializedUser = serializeUser(user);
-
       saveUserToLocalStorage(serializedUser, "google");
-      console.log("Token:", token);
-      console.log("User:", serializedUser);
       dispatch(setGoogleLogin(serializedUser));
+      dispatch(loadSavedBooks({ userId: serializedUser.uid }));
       return { token, user };
     } else {
       console.error("No credential found in the result.");
       return null;
     }
   } catch (error: any) {
-    const errorCode = error.code;
-    const errorMessage = error.message;
-    const email = error.customData?.email;
-    const credential = GoogleAuthProvider.credentialFromError(error);
-    console.error("Error Code:", errorCode);
-    console.error("Error Message:", errorMessage);
-    console.error("Email:", email);
-    console.error("Credential Error:", credential);
+    console.error("Error during Google login:", error);
     throw error;
   }
 };
@@ -85,16 +85,12 @@ export const summaristRegister = async (
     );
     const user = userCredential.user;
     const serializedUser = serializeUser(user);
-
     saveUserToLocalStorage(serializedUser, "summarist");
-    console.log("User registered successfully:", serializedUser);
     dispatch(setSummaristLogin(serializedUser));
+    dispatch(loadSavedBooks({ userId: serializedUser.uid }));
     return user;
   } catch (error: any) {
-    const errorCode = error.code;
-    const errorMessage = error.message;
-    console.error("Error Code:", errorCode);
-    console.error("Error Message:", errorMessage);
+    console.error("Error during registration:", error);
     throw error;
   }
 };
@@ -112,16 +108,12 @@ export const summaristLogin = async (
     );
     const user = userCredential.user;
     const serializedUser = serializeUser(user);
-    console.log("User logged in successfully:", serializedUser);
-    dispatch(setSummaristLogin(serializedUser));
-
     saveUserToLocalStorage(serializedUser, "summarist");
+    dispatch(setSummaristLogin(serializedUser));
+    dispatch(loadSavedBooks({ userId: serializedUser.uid }));
     return user;
   } catch (error: any) {
-    const errorCode = error.code;
-    const errorMessage = error.message;
-    console.error("Error Code:", errorCode);
-    console.error("Error Message:", errorMessage);
+    console.error("Error during login:", error);
     throw error;
   }
 };
@@ -133,32 +125,28 @@ export const guestLogin = async (
     const userCredential = await signInAnonymously(auth);
     const user = userCredential.user;
     const serializedUser = serializeUser(user);
-    console.log("Guest signed in successfully:", serializedUser);
-
     saveUserToLocalStorage(serializedUser, "guest");
     dispatch(setGuestLogin(serializedUser));
     return user;
   } catch (error: any) {
-    const errorCode = error.code;
-    const errorMessage = error.message;
-    console.error("Error Code:", errorCode);
-    console.error("Error Message:", errorMessage);
+    console.error("Error during guest login:", error);
     throw error;
   }
 };
 
 export const logoutUser = async (dispatch: AppDispatch): Promise<void> => {
   try {
+    saveStateToLocalStorage(store.getState());
+
     await signOut(auth);
 
     removeUserFromLocalStorage();
-    console.log("User signed out successfully.");
+
+    dispatch(clearSavedBooks());
+    dispatch(clearFinishedBooks());
     dispatch(setLoggedOut());
   } catch (error: any) {
-    const errorCode = error.code;
-    const errorMessage = error.message;
-    console.error("Error Code:", errorCode);
-    console.error("Error Message:", errorMessage);
+    console.error("Error during logout:", error);
     throw error;
   }
 };
@@ -166,12 +154,8 @@ export const logoutUser = async (dispatch: AppDispatch): Promise<void> => {
 export const forgotPassword = async (email: string): Promise<void> => {
   try {
     await sendPasswordResetEmail(auth, email);
-    console.log("Password reset email sent successfully.");
   } catch (error: any) {
-    const errorCode = error.code;
-    const errorMessage = error.message;
-    console.error("Error Code:", errorCode);
-    console.error("Error Message:", errorMessage);
+    console.error("Error during password reset:", error);
     throw error;
   }
 };

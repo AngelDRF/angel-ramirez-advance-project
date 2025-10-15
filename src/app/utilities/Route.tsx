@@ -7,6 +7,8 @@ export const route = (router: any): void => {
     router.push(currentPath);
   } else if (currentPath.startsWith("/settingsPage")) {
     router.push(currentPath);
+  } else if (currentPath.startsWith("/playerPage")) {
+    router.push(currentPath);
   } else {
     router.push("/for-youPage");
   }

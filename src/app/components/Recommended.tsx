@@ -1,21 +1,27 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { BookTypes } from "../utilities/BookTypes"; 
-import { useSelector } from "react-redux";
+import { BookTypes } from "../utilities/BookTypes";
+import { useSelector, useDispatch } from "react-redux";
 import Link from "next/link";
-import { RootState } from "../redux/Store"; 
+import { RootState, AppDispatch } from "../redux/Store";
+import { updateBookDuration } from "../redux/Library";
+import { TimeFormat } from "../utilities/TimeFormat";
 
 export default function Recommended() {
-  const [books, setBooks] = useState<BookTypes[]>([]); 
-  const [isLoading, setIsLoading] = useState(true); 
-  const isLoggedIn = useSelector((state: RootState) => state.user.isLoggedIn); 
+  const [books, setBooks] = useState<BookTypes[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const isLoggedIn = useSelector((state: RootState) => state.user.isLoggedIn);
   const isSubscribed = useSelector(
     (state: RootState) => state.user.isSubscribed
-  ); 
+  );
   const isPlusSubscribed = useSelector(
     (state: RootState) => state.user.isPlusSubscribed
-  ); 
+  );
+  const savedBooks = useSelector(
+    (state: RootState) => state.library.savedBooks
+  );
+  const dispatch = useDispatch<AppDispatch>();
 
   useEffect(() => {
     const fetchBooks = async () => {
@@ -24,16 +30,26 @@ export default function Recommended() {
           `https://us-central1-summaristt.cloudfunctions.net/getBooks?status=recommended`
         );
         const books = await data.json();
-        setBooks(books); 
+        setBooks(books);
       } catch (error) {
         console.error("Failed to fetch books:", error);
       } finally {
-        setIsLoading(false); 
+        setIsLoading(false);
       }
     };
 
     fetchBooks();
   }, []);
+
+  const handleLoadedMetadata = (
+    audioElement: HTMLAudioElement,
+    bookId: string
+  ) => {
+    const audioDuration = audioElement.duration;
+    dispatch(
+      updateBookDuration({ id: bookId, duration: TimeFormat(audioDuration) })
+    );
+  };
 
   return (
     <div>
@@ -41,7 +57,6 @@ export default function Recommended() {
       <div className="for-you__sub--title">We think you'll like these</div>
       <div className="for-you__recommended--books">
         {isLoading ? (
-          
           <div className="recommended__books--skeleton-wrapper">
             {Array.from({ length: 5 }).map((_, index) => (
               <div
@@ -55,7 +70,6 @@ export default function Recommended() {
                   paddingBottom: "32px",
                 }}
               >
-                
                 <div
                   className="skeleton"
                   style={{
@@ -67,7 +81,7 @@ export default function Recommended() {
                     justifyContent: "center",
                   }}
                 ></div>
-                
+
                 <div
                   className="skeleton"
                   style={{
@@ -75,7 +89,7 @@ export default function Recommended() {
                     width: "80%",
                   }}
                 ></div>
-                
+
                 <div
                   className="skeleton"
                   style={{
@@ -83,7 +97,7 @@ export default function Recommended() {
                     width: "60%",
                   }}
                 ></div>
-                
+
                 <div
                   className="skeleton"
                   style={{
@@ -91,7 +105,7 @@ export default function Recommended() {
                     width: "100%",
                   }}
                 ></div>
-                
+
                 <div
                   className="skeleton"
                   style={{
@@ -113,7 +127,12 @@ export default function Recommended() {
                       Premium
                     </div>
                   )}
-                <audio src={book.audioLink}></audio>
+                <audio
+                  src={book.audioLink}
+                  onLoadedMetadata={(e) =>
+                    handleLoadedMetadata(e.currentTarget, book.id)
+                  }
+                ></audio>
                 <figure className="book__image--wrapper">
                   <img src={book.imageLink} alt={book.title}></img>
                 </figure>
@@ -138,7 +157,9 @@ export default function Recommended() {
                         <path d="M13 7h-2v6h6v-2h-4z"></path>
                       </svg>
                     </div>
-                    <div className="recommended__book--details-text">03:24</div>
+                    <div className="recommended__book--details-text">
+                      {savedBooks[book.id]?.duration || "Loading..."}
+                    </div>
                   </div>
                   <div className="recommended__book--details">
                     <div className="recommended__book--details-icon">

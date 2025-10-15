@@ -2,40 +2,63 @@
 
 import React, { useEffect, useState } from "react";
 import { BookTypes } from "../../utilities/BookTypes";
-import { use } from "react";
 import AudioPlayer from "../../utilities/AudioPlayer";
 import { useSelector } from "react-redux";
 import { RootState } from "../../redux/Store";
 
 export default function Page({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+  const [id, setId] = useState<string | null>(null);
   const [book, setBook] = useState<BookTypes | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const fontSize = useSelector((state: RootState) => state.fontSize);
 
   useEffect(() => {
-    const fetchBook = async () => {
+    const resolveParamsAndFetchBook = async () => {
       try {
-        const data = await fetch(
-          `https://us-central1-summaristt.cloudfunctions.net/getBook?id=${id}`
+        const resolvedParams = await params;
+        setId(resolvedParams.id);
+
+        const response = await fetch(
+          `https://us-central1-summaristt.cloudfunctions.net/getBook?id=${resolvedParams.id}`
         );
-        if (!data.ok) {
+        if (!response.ok) {
           throw new Error("Failed to fetch data");
         }
-        const book = await data.json();
-        setBook(book);
+        const bookData = await response.json();
+        setBook(bookData);
       } catch (error) {
         console.error("Failed to fetch book:", error);
       } finally {
-        setIsLoading(false);
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 100);
       }
     };
 
-    fetchBook();
-  }, [id]);
+    resolveParamsAndFetchBook();
+  }, [params]);
 
-  if (!book) {
-    return <div>Loading...</div>;
+  if (isLoading) {
+    return (
+      <div className="wrapper">
+        <div className="summary">
+          <div className="audio__book--spinner">
+            <svg
+              stroke="currentColor"
+              fill="currentColor"
+              strokeWidth="0"
+              version="1.1"
+              viewBox="0 0 16 16"
+              height="1em"
+              width="1em"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path d="M8 16c-2.137 0-4.146-0.832-5.657-2.343s-2.343-3.52-2.343-5.657c0-1.513 0.425-2.986 1.228-4.261 0.781-1.239 1.885-2.24 3.193-2.895l0.672 1.341c-1.063 0.533-1.961 1.347-2.596 2.354-0.652 1.034-0.997 2.231-0.997 3.461 0 3.584 2.916 6.5 6.5 6.5s6.5-2.916 6.5-6.5c0-1.23-0.345-2.426-0.997-3.461-0.635-1.008-1.533-1.822-2.596-2.354l0.672-1.341c1.308 0.655 2.412 1.656 3.193 2.895 0.803 1.274 1.228 2.748 1.228 4.261 0 2.137-0.832 4.146-2.343 5.657s-3.52 2.343-5.657 2.343z"></path>
+            </svg>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -58,7 +81,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                   : "24px",
             }}
           >
-            {book.summary}
+            {book?.summary}
           </div>
         </div>
 
@@ -67,6 +90,9 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
           imageLink={book?.imageLink || ""}
           title={book?.title || ""}
           author={book?.author || ""}
+          bookId={id || ""}
+          subTitle={book?.subTitle || ""}
+          averageRating={book?.averageRating || 0}
           isLoading={isLoading}
         />
       </div>

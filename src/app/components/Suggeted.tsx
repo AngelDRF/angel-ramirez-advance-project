@@ -2,8 +2,10 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { BookTypes } from "../utilities/BookTypes";
-import { useSelector } from "react-redux";
-import { RootState } from "../redux/Store";
+import { useSelector, useDispatch } from "react-redux";
+import { RootState, AppDispatch } from "../redux/Store";
+import { updateBookDuration } from "../redux/Library";
+import { TimeFormat } from "../utilities/TimeFormat";
 
 export default function Suggested() {
   const [books, setBooks] = useState<BookTypes[]>([]);
@@ -15,6 +17,10 @@ export default function Suggested() {
   const isPlusSubscribed = useSelector(
     (state: RootState) => state.user.isPlusSubscribed
   );
+  const savedBooks = useSelector(
+    (state: RootState) => state.library.savedBooks
+  );
+  const dispatch = useDispatch<AppDispatch>();
 
   useEffect(() => {
     const fetchBooks = async () => {
@@ -33,6 +39,16 @@ export default function Suggested() {
 
     fetchBooks();
   }, []);
+
+  const handleLoadedMetadata = (
+    audioElement: HTMLAudioElement,
+    bookId: string
+  ) => {
+    const audioDuration = audioElement.duration;
+    dispatch(
+      updateBookDuration({ id: bookId, duration: TimeFormat(audioDuration) })
+    );
+  };
 
   return (
     <div>
@@ -114,7 +130,12 @@ export default function Suggested() {
                       Premium
                     </div>
                   )}
-                <audio src={book.audioLink}></audio>
+                <audio
+                  src={book.audioLink}
+                  onLoadedMetadata={(e) =>
+                    handleLoadedMetadata(e.currentTarget, book.id)
+                  }
+                ></audio>
                 <figure className="book__image--wrapper">
                   <img src={book.imageLink} alt={book.title}></img>
                 </figure>
@@ -139,7 +160,9 @@ export default function Suggested() {
                         <path d="M13 7h-2v6h6v-2h-4z"></path>
                       </svg>
                     </div>
-                    <div className="recommended__book--details-text">03:24</div>
+                    <div className="recommended__book--details-text">
+                      {savedBooks[book.id]?.duration || "Loading..."}
+                    </div>
                   </div>
                   <div className="recommended__book--details">
                     <div className="recommended__book--details-icon">

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import googleLogo from "../assets/google.png";
 import { useRouter } from "next/navigation";
@@ -19,6 +19,7 @@ import {
   forgotPassword,
   guestLogin,
 } from "../utilities/auth";
+import { fetchSubscriptionState } from "../utilities/SubscriptionService";
 
 export default function Modal() {
   const modalContentRef = useRef<HTMLDivElement | null>(null);
@@ -38,13 +39,13 @@ export default function Modal() {
   const dispatch = useDispatch<AppDispatch>();
 
   const { isRegistering } = useSelector((state: RootState) => state.modal);
+  const user = useSelector((state: RootState) => state.user.user);
 
   const handleGoogleLogin = async () => {
     try {
       const result = await googleLogin(dispatch);
       if (result) {
         const { token, user } = result;
-        console.log("Google Login Successful:", { token, user });
         dispatch(closeLoginModal());
         dispatch(closeSignupModal());
         route(router);
@@ -61,7 +62,6 @@ export default function Modal() {
       const result = await googleLogin(dispatch);
       if (result) {
         const { token, user } = result;
-        console.log("Google Login Successful:", { token, user });
         dispatch(closeLoginModal());
         dispatch(closeSignupModal());
         route(router);
@@ -79,7 +79,6 @@ export default function Modal() {
     e.preventDefault();
     try {
       const user = await summaristRegister(email, password, dispatch);
-      console.log("Registration successful:", user);
       dispatch(closeLoginModal());
       dispatch(closeSignupModal());
       route(router);
@@ -94,7 +93,6 @@ export default function Modal() {
     try {
       const user = await summaristLogin(email, password, dispatch);
       if (user) {
-        console.log("Login successful:", user);
         dispatch(closeLoginModal());
         dispatch(closeSignupModal());
         route(router);
@@ -119,7 +117,6 @@ export default function Modal() {
     if (showPasswordReset) {
       try {
         await forgotPassword(forgotPasswordEmail);
-        console.log("Password reset email sent!");
         setMessage("Password reset email sent! Check your inbox.");
         setForgotPasswordEmail("");
       } catch (error: any) {
@@ -137,7 +134,6 @@ export default function Modal() {
     try {
       const user = await guestLogin(dispatch);
       if (user) {
-        console.log("Guest Login Successful:", user);
         dispatch(closeLoginModal());
         dispatch(closeSignupModal());
         route(router);
@@ -158,6 +154,12 @@ export default function Modal() {
       dispatch(closeSignupModal());
     }
   };
+
+  useEffect(() => {
+    if (user?.email) {
+      dispatch(fetchSubscriptionState(user.email));
+    }
+  }, [user, dispatch]);
 
   return (
     <div className="auth__wrapper" onClick={handleClickOutside}>

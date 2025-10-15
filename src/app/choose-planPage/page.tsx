@@ -1,8 +1,140 @@
-import React from "react";
+"use client";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import pricing from "../assets/pricing-top.webp"
+import pricing from "../assets/pricing-top.webp";
+import { useDispatch, useSelector } from "react-redux";
+import { loadStripe } from "@stripe/stripe-js";
+import { RootState } from "../redux/Store";
+import { setSubscribed, setPlusSubscribed } from "../redux/User";
 
 const Page = () => {
+  const [activeAccordion, setActiveAccordion] = useState<number | null>(null);
+
+  const [activePlan, setActivePlan] = useState<
+    "premium plus annual" | "premium monthly"
+  >("premium plus annual");
+  const user = useSelector((state: RootState) => state.user.user);
+  const isSubscribed = useSelector(
+    (state: RootState) => state.user.isSubscribed
+  );
+  const isPlusSubscribed = useSelector(
+    (state: RootState) => state.user.isPlusSubscribed
+  );
+  const dispatch = useDispatch();
+
+  const [hasFetched, setHasFetched] = useState(false);
+
+  useEffect(() => {
+    const fetchSubscriptionState = async () => {
+      if (!user?.email || hasFetched) return;
+
+      try {
+        const response = await fetch(
+          `/api/getSubscriptionState?email=${user.email}`
+        );
+        if (response.ok) {
+          const { isSubscribed, isPlusSubscribed } = await response.json();
+          dispatch(setSubscribed(isSubscribed));
+          dispatch(setPlusSubscribed(isPlusSubscribed));
+          localStorage.setItem("isSubscribed", JSON.stringify(isSubscribed));
+          localStorage.setItem(
+            "isPlusSubscribed",
+            JSON.stringify(isPlusSubscribed)
+          );
+          setHasFetched(true);
+        }
+      } catch (error) {
+        console.error("Error fetching subscription state:", error);
+      }
+    };
+
+    fetchSubscriptionState();
+  }, [user?.email, dispatch, hasFetched]);
+
+  const toggleAccordion = (index: number) => {
+    setActiveAccordion((prevIndex) => (prevIndex === index ? null : index));
+  };
+
+  const handleCheckout = async () => {
+    if (!activePlan) {
+      alert("Please select a plan before proceeding.");
+      return;
+    }
+
+    if (
+      (activePlan === "premium plus annual" && isPlusSubscribed) ||
+      (activePlan === "premium monthly" && isSubscribed)
+    ) {
+      alert("You are already subscribed to this plan.");
+      return;
+    }
+
+    try {
+      const lookupKey = activePlan;
+      const email = user?.email;
+
+      if (!email) {
+        alert("User email is required to proceed with the checkout.");
+        return;
+      }
+
+      const response = await fetch("/api/createCheckoutSessions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ lookupKey, email }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("API Error:", errorData);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const { sessionId } = await response.json();
+
+      if (!sessionId) {
+        throw new Error("Failed to create checkout session.");
+      }
+
+      if (activePlan === "premium plus annual") {
+        dispatch(setPlusSubscribed(true));
+      } else if (activePlan === "premium monthly") {
+        dispatch(setSubscribed(true));
+      }
+
+      try {
+        await fetch("/api/updateSubscriptionState", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email,
+            isSubscribed: activePlan === "premium monthly",
+            isPlusSubscribed: activePlan === "premium plus annual",
+          }),
+        });
+      } catch (error) {
+        console.error("Error updating Firestore:", error);
+      }
+
+      const stripe = await loadStripe(
+        process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
+      );
+
+      if (!stripe) {
+        throw new Error("Stripe failed to load.");
+      }
+
+      await stripe.redirectToCheckout({ sessionId });
+    } catch (error) {
+      console.error("Error during checkout:", error);
+      alert("Something went wrong. Please try again.");
+    }
+  };
+
   return (
     <div className="plan">
       <div className="plan__header--wrapper">
@@ -14,11 +146,7 @@ const Page = () => {
             Turn ordinary moments into amazing learning opportunities
           </div>
           <figure className="plan__img--mask">
-          <Image
-              alt="pricing"
-                src={pricing}
-                height={722}
-                width={860}/>
+            <Image alt="pricing" src={pricing} height={722} width={860} />
           </figure>
         </div>
       </div>
@@ -64,6 +192,7 @@ const Page = () => {
                 <b>3 million</b> people growing with Summarist everyday
               </div>
             </div>
+
             <div className="plan__features">
               <figure className="plan__features--icon">
                 <svg
@@ -84,9 +213,17 @@ const Page = () => {
             </div>
           </div>
           <div className="section__title">Choose the plan that fits you</div>
-          <div className="plan__card plan__card--active">
+
+          <div
+            className={`plan__card ${
+              activePlan === "premium plus annual" ? "plan__card--active" : ""
+            }`}
+            onClick={() => setActivePlan("premium plus annual")}
+          >
             <div className="plan__card--circle">
-              <div className="plan__card--dot"></div>
+              {activePlan === "premium plus annual" && (
+                <div className="plan__card--dot"></div>
+              )}
             </div>
             <div className="plan__card--content">
               <div className="plan__card--title">Premium Plus Yearly</div>
@@ -94,31 +231,56 @@ const Page = () => {
               <div className="plan__card--text">7-day free trial included</div>
             </div>
           </div>
+
           <div className="plan__card--separator">
             <div className="plan__separator">or</div>
           </div>
-          <div className="plan__card ">
-            <div className="plan__card--circle"></div>
+
+          <div
+            className={`plan__card ${
+              activePlan === "premium monthly" ? "plan__card--active" : ""
+            }`}
+            onClick={() => setActivePlan("premium monthly")}
+          >
+            <div className="plan__card--circle">
+              {activePlan === "premium monthly" && (
+                <div className="plan__card--dot"></div>
+              )}
+            </div>
             <div className="plan__card--content">
               <div className="plan__card--title">Premium Monthly</div>
               <div className="plan__card--price">$9.99/month</div>
               <div className="plan__card--text">No trial included</div>
             </div>
           </div>
+
           <div className="plan__card--cta">
             <span className="btn--wrapper">
-              <button className="btn" style={{ width: "300px" }}>
-                <span>Start your free 7-day trial</span>
+              <button
+                className="btn"
+                style={{ width: "300px" }}
+                onClick={handleCheckout}
+              >
+                <span>
+                  {activePlan === "premium monthly"
+                    ? "Start your first month"
+                    : "Start your free 7-day trial"}
+                </span>
               </button>
             </span>
             <div className="plan__disclaimer">
-              Cancel your trial at any time before it ends, and you won't be
-              charged.
+              {activePlan === "premium monthly"
+                ? "30-day money back guarantee, no questions asked."
+                : "Cancel your trial at any time before it ends, and you won't be charged."}
             </div>
           </div>
+
           <div className="faq__wrapper">
             <div className="accordion__card">
-              <div className="accordion__header">
+              <div
+                className="accordion__header"
+                onClick={() => toggleAccordion(1)}
+              >
                 <div className="accordion__title">
                   How does the free 7-day trial work?
                 </div>
@@ -127,7 +289,9 @@ const Page = () => {
                   fill="currentColor"
                   strokeWidth="0"
                   viewBox="0 0 16 16"
-                  className="accordion__icon accordion__icon--rotate"
+                  className={`accordion__icon ${
+                    activeAccordion === 1 ? "accordion__icon--rotate" : ""
+                  }`}
                   height="1em"
                   width="1em"
                   xmlns="http://www.w3.org/2000/svg"
@@ -138,7 +302,7 @@ const Page = () => {
                   ></path>
                 </svg>
               </div>
-              <div className="collapse show" style={{height: "96px"}}>
+              <div className={`${activeAccordion === 1 ? "show" : "collapse"}`}>
                 <div className="accordion__body">
                   Begin your complimentary 7-day trial with a Summarist annual
                   membership. You are under no obligation to continue your
@@ -150,8 +314,12 @@ const Page = () => {
                 </div>
               </div>
             </div>
+
             <div className="accordion__card">
-              <div className="accordion__header">
+              <div
+                className="accordion__header"
+                onClick={() => toggleAccordion(2)}
+              >
                 <div className="accordion__title">
                   Can I switch subscriptions from monthly to yearly, or yearly
                   to monthly?
@@ -161,7 +329,9 @@ const Page = () => {
                   fill="currentColor"
                   strokeWidth="0"
                   viewBox="0 0 16 16"
-                  className="accordion__icon "
+                  className={`accordion__icon ${
+                    activeAccordion === 2 ? "accordion__icon--rotate" : ""
+                  }`}
                   height="1em"
                   width="1em"
                   xmlns="http://www.w3.org/2000/svg"
@@ -172,7 +342,7 @@ const Page = () => {
                   ></path>
                 </svg>
               </div>
-              <div className="collapse " style={{height: "0px"}}>
+              <div className={`${activeAccordion === 2 ? "show" : "collapse"}`}>
                 <div className="accordion__body">
                   While an annual plan is active, it is not feasible to switch
                   to a monthly plan. However, once the current month ends,
@@ -181,8 +351,12 @@ const Page = () => {
                 </div>
               </div>
             </div>
+
             <div className="accordion__card">
-              <div className="accordion__header">
+              <div
+                className="accordion__header"
+                onClick={() => toggleAccordion(3)}
+              >
                 <div className="accordion__title">
                   What's included in the Premium plan?
                 </div>
@@ -191,7 +365,9 @@ const Page = () => {
                   fill="currentColor"
                   strokeWidth="0"
                   viewBox="0 0 16 16"
-                  className="accordion__icon "
+                  className={`accordion__icon ${
+                    activeAccordion === 3 ? "accordion__icon--rotate" : ""
+                  }`}
                   height="1em"
                   width="1em"
                   xmlns="http://www.w3.org/2000/svg"
@@ -202,7 +378,7 @@ const Page = () => {
                   ></path>
                 </svg>
               </div>
-              <div className="collapse " style={{height: "0px"}}>
+              <div className={`${activeAccordion === 3 ? "show" : "collapse"}`}>
                 <div className="accordion__body">
                   Premium membership provides you with the ultimate Summarist
                   experience, including unrestricted entry to many best-selling
@@ -212,8 +388,12 @@ const Page = () => {
                 </div>
               </div>
             </div>
+
             <div className="accordion__card">
-              <div className="accordion__header">
+              <div
+                className="accordion__header"
+                onClick={() => toggleAccordion(4)}
+              >
                 <div className="accordion__title">
                   Can I cancel during my trial or subscription?
                 </div>
@@ -222,7 +402,9 @@ const Page = () => {
                   fill="currentColor"
                   strokeWidth="0"
                   viewBox="0 0 16 16"
-                  className="accordion__icon "
+                  className={`accordion__icon ${
+                    activeAccordion === 4 ? "accordion__icon--rotate" : ""
+                  }`}
                   height="1em"
                   width="1em"
                   xmlns="http://www.w3.org/2000/svg"
@@ -233,7 +415,7 @@ const Page = () => {
                   ></path>
                 </svg>
               </div>
-              <div className="collapse " style={{height: "0px"}}>
+              <div className={`${activeAccordion === 4 ? "show" : "collapse"}`}>
                 <div className="accordion__body">
                   You will not be charged if you cancel your trial before its
                   conclusion. While you will not have complete access to the

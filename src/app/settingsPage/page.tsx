@@ -6,11 +6,13 @@ import login from "../assets/login.png";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "../redux/Store";
 import { openLoginModal } from "../redux/Modal";
+import { useParams, useRouter } from "next/navigation";
 
 const Page = () => {
   const dispatch = useDispatch<AppDispatch>();
   const isLoggedIn = useSelector((state: RootState) => state.user.isLoggedIn);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
   const isSubscribed = useSelector(
     (state: RootState) => state.user.isSubscribed
   );
@@ -97,6 +99,19 @@ const Page = () => {
                       Your Subscription plan
                     </div>
                     <div className="settings__text">{subscriptionTier}</div>
+                    <div>
+                      {!isSubscribed && !isPlusSubscribed && (
+                        <button
+                          className="btn settings__upgrade--btn"
+                          style={{ marginTop: "12px" }}
+                          onClick={() => {
+                            router.push(`/choose-planPage`);
+                          }}
+                        >
+                          Upgrade to Premium
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div className="setting__content">
                     <div className="settings__sub--title">Email</div>
