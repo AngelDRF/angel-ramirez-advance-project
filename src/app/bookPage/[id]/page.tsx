@@ -47,7 +47,6 @@ function Page() {
           throw new Error("Failed to fetch book data");
         }
         const data = await response.json();
-        console.log("Fetched book data:", data);
         setBook(data);
 
         if (data.duration) {

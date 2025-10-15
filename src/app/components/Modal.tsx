@@ -46,7 +46,6 @@ export default function Modal() {
       const result = await googleLogin(dispatch);
       if (result) {
         const { token, user } = result;
-        console.log("Google Login Successful:", { token, user });
         dispatch(closeLoginModal());
         dispatch(closeSignupModal());
         route(router);
@@ -63,7 +62,6 @@ export default function Modal() {
       const result = await googleLogin(dispatch);
       if (result) {
         const { token, user } = result;
-        console.log("Google Login Successful:", { token, user });
         dispatch(closeLoginModal());
         dispatch(closeSignupModal());
         route(router);
@@ -81,7 +79,6 @@ export default function Modal() {
     e.preventDefault();
     try {
       const user = await summaristRegister(email, password, dispatch);
-      console.log("Registration successful:", user);
       dispatch(closeLoginModal());
       dispatch(closeSignupModal());
       route(router);
@@ -96,7 +93,6 @@ export default function Modal() {
     try {
       const user = await summaristLogin(email, password, dispatch);
       if (user) {
-        console.log("Login successful:", user);
         dispatch(closeLoginModal());
         dispatch(closeSignupModal());
         route(router);
@@ -121,7 +117,6 @@ export default function Modal() {
     if (showPasswordReset) {
       try {
         await forgotPassword(forgotPasswordEmail);
-        console.log("Password reset email sent!");
         setMessage("Password reset email sent! Check your inbox.");
         setForgotPasswordEmail("");
       } catch (error: any) {
@@ -139,7 +134,6 @@ export default function Modal() {
     try {
       const user = await guestLogin(dispatch);
       if (user) {
-        console.log("Guest Login Successful:", user);
         dispatch(closeLoginModal());
         dispatch(closeSignupModal());
         route(router);

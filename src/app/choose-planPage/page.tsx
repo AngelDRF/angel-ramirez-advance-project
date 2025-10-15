@@ -25,7 +25,6 @@ const Page = () => {
   const [hasFetched, setHasFetched] = useState(false);
 
   useEffect(() => {
-    console.log("Fetching subscription state...");
     const fetchSubscriptionState = async () => {
       if (!user?.email || hasFetched) return;
 
@@ -35,10 +34,6 @@ const Page = () => {
         );
         if (response.ok) {
           const { isSubscribed, isPlusSubscribed } = await response.json();
-          console.log("Fetched subscription state:", {
-            isSubscribed,
-            isPlusSubscribed,
-          });
           dispatch(setSubscribed(isSubscribed));
           dispatch(setPlusSubscribed(isPlusSubscribed));
           localStorage.setItem("isSubscribed", JSON.stringify(isSubscribed));
@@ -61,11 +56,6 @@ const Page = () => {
   };
 
   const handleCheckout = async () => {
-    console.log("handleCheckout called");
-    console.log("Active Plan:", activePlan);
-    console.log("isSubscribed (Redux):", isSubscribed);
-    console.log("isPlusSubscribed (Redux):", isPlusSubscribed);
-
     if (!activePlan) {
       alert("Please select a plan before proceeding.");
       return;
@@ -80,8 +70,6 @@ const Page = () => {
     }
 
     try {
-      console.log("Starting checkout process for plan:", activePlan);
-
       const lookupKey = activePlan;
       const email = user?.email;
 
@@ -89,8 +77,6 @@ const Page = () => {
         alert("User email is required to proceed with the checkout.");
         return;
       }
-
-      console.log("Sending request with:", { lookupKey, email });
 
       const response = await fetch("/api/createCheckoutSessions", {
         method: "POST",
@@ -112,8 +98,6 @@ const Page = () => {
         throw new Error("Failed to create checkout session.");
       }
 
-      console.log("Redirecting to Stripe Checkout with sessionId:", sessionId);
-
       if (activePlan === "premium plus annual") {
         dispatch(setPlusSubscribed(true));
       } else if (activePlan === "premium monthly") {
@@ -132,7 +116,6 @@ const Page = () => {
             isPlusSubscribed: activePlan === "premium plus annual",
           }),
         });
-        console.log("Firestore updated successfully.");
       } catch (error) {
         console.error("Error updating Firestore:", error);
       }

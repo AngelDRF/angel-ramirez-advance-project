@@ -145,8 +145,6 @@ export const logoutUser = async (dispatch: AppDispatch): Promise<void> => {
     dispatch(clearSavedBooks());
     dispatch(clearFinishedBooks());
     dispatch(setLoggedOut());
-
-    console.log("User signed out successfully.");
   } catch (error: any) {
     console.error("Error during logout:", error);
     throw error;
@@ -156,7 +154,6 @@ export const logoutUser = async (dispatch: AppDispatch): Promise<void> => {
 export const forgotPassword = async (email: string): Promise<void> => {
   try {
     await sendPasswordResetEmail(auth, email);
-    console.log("Password reset email sent successfully.");
   } catch (error: any) {
     console.error("Error during password reset:", error);
     throw error;

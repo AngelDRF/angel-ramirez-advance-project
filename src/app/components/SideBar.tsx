@@ -33,7 +33,6 @@ const SideBar = forwardRef<HTMLDivElement, SidebarProps>(
     const handleLogoutUser = async () => {
       try {
         await logoutUser(dispatch);
-        console.log("User logged out successfully.");
         onLinkClick();
       } catch (error) {
         console.error("Logout failed:", error);

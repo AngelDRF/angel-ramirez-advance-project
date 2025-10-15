@@ -4,7 +4,7 @@ import { buffer } from "micro";
 import { db } from "../../src/app/firebase/Admin";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-09-30.clover",
+  apiVersion: "2025-08-27.basil",
 });
 
 export const config = {
@@ -58,10 +58,8 @@ export default async function handler(
             stripeCustomerId: session.customer,
             stripeLink: `https://dashboard.stripe.com/customers/${session.customer}`,
           });
-          console.log("New customer document created:", customerRef.id);
         } else {
           customerRef = customersSnapshot.docs[0].ref;
-          console.log("Existing customer document found:", customerRef.id);
         }
 
         try {
@@ -76,12 +74,9 @@ export default async function handler(
                 quantity: item.quantity,
               })),
             });
-          console.log("Subscription successfully written to Firestore.");
         } catch (error) {
           console.error("Error writing subscription to Firestore:", error);
         }
-
-        console.log(`Customer ${email} updated in Firestore.`);
       } catch (error) {
         console.error(
           "Error updating Firestore with subscription details:",

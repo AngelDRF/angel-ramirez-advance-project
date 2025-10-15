@@ -85,6 +85,7 @@ button:disabled {
 }
 
 /* HOME */
+
 .section__title {
   font-size: 32px;
   color: #032b41;
@@ -94,6 +95,7 @@ button:disabled {
 }
 
 /* NAVBAR */
+
 .nav {
   height: 80px;
 }
@@ -138,6 +140,7 @@ button:disabled {
 }
 
 /* LANDING */
+
 .landing__wrapper {
   display: flex;
 }
@@ -174,6 +177,7 @@ button:disabled {
 }
 
 /* FEATURES */
+
 .features__wrapper {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -278,6 +282,7 @@ button:disabled {
 }
 
 /* REVIEWS */
+
 .reviews__wrapper {
   max-width: 600px;
   margin: 0 auto;
@@ -320,6 +325,7 @@ button:disabled {
 }
 
 /* NUMBERS */
+
 .numbers {
   background-color: #d7e9ff;
   display: flex;
