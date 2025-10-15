@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { getSubscriptionStateFromDatabase } from "../../src/app/firebase/Admin";
+import { getSubscriptionStateFromDatabase } from "../../app/firebase/Admin";
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
