@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import googleLogo from "../assets/google.png";
 import { useRouter } from "next/navigation";
@@ -19,6 +19,7 @@ import {
   forgotPassword,
   guestLogin,
 } from "../utilities/auth";
+import { fetchSubscriptionState } from "../utilities/SubscriptionService";
 
 export default function Modal() {
   const modalContentRef = useRef<HTMLDivElement | null>(null);
@@ -38,6 +39,7 @@ export default function Modal() {
   const dispatch = useDispatch<AppDispatch>();
 
   const { isRegistering } = useSelector((state: RootState) => state.modal);
+  const user = useSelector((state: RootState) => state.user.user);
 
   const handleGoogleLogin = async () => {
     try {
@@ -158,6 +160,12 @@ export default function Modal() {
       dispatch(closeSignupModal());
     }
   };
+
+  useEffect(() => {
+    if (user?.email) {
+      dispatch(fetchSubscriptionState(user.email));
+    }
+  }, [user, dispatch]);
 
   return (
     <div className="auth__wrapper" onClick={handleClickOutside}>

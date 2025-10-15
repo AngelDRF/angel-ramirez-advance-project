@@ -1,19 +1,27 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { BookTypes } from "../../utilities/BookTypes";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "../../redux/Store";
-import { use } from "react";
 import Modal from "../../components/Modal";
 import { openLoginModal } from "../../redux/Modal";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { toggleSavedState, updateBookDuration } from "../../redux/Library";
+import { TimeFormat } from "../../utilities/TimeFormat";
 
-export default function Page({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+function Page() {
+  const { id } = useParams() as { id: string };
   const [book, setBook] = useState<BookTypes | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
   const isLoggedIn = useSelector((state: RootState) => state.user.isLoggedIn);
+  const isSaved = useSelector(
+    (state: RootState) => state.library.savedBooks[id]
+  );
   const isSubscribed = useSelector(
     (state: RootState) => state.user.isSubscribed
   );
@@ -25,25 +33,56 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
 
   useEffect(() => {
+    if (!id) {
+      console.error("Book ID is missing");
+      return;
+    }
+
     const fetchBook = async () => {
       try {
-        const data = await fetch(
+        const response = await fetch(
           `https://us-central1-summaristt.cloudfunctions.net/getBook?id=${id}`
         );
-        if (!data.ok) {
-          throw new Error("Failed to fetch data");
+        if (!response.ok) {
+          throw new Error("Failed to fetch book data");
         }
-        const book = await data.json();
-        setBook(book);
+        const data = await response.json();
+        console.log("Fetched book data:", data);
+        setBook(data);
+
+        if (data.duration) {
+          dispatch(
+            updateBookDuration({ id: data.id, duration: data.duration })
+          );
+        }
       } catch (error) {
-        console.error("Failed to fetch book:", error);
+        console.error("Error fetching book:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchBook();
-  }, [id]);
+  }, [id, dispatch]);
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      const audioDuration = audioRef.current.duration;
+      setDuration(audioDuration);
+
+      dispatch(updateBookDuration({ id, duration: TimeFormat(audioDuration) }));
+
+      setBook((prevBook) =>
+        prevBook ? { ...prevBook, duration: TimeFormat(audioDuration) } : null
+      );
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -168,15 +207,20 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
     );
   }
 
-  const handleOpenLoginModal = () => {
-    dispatch(openLoginModal());
-  };
-
   if (!book) {
     return null;
   }
 
+  const handleOpenLoginModal = () => {
+    dispatch(openLoginModal());
+  };
+
   const handleReadOrListen = () => {
+    if (!book) {
+      console.error("Book data is not loaded yet.");
+      return;
+    }
+
     if (!isLoggedIn) {
       handleOpenLoginModal();
     } else if (!book.subscriptionRequired) {
@@ -195,11 +239,11 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
     }
   };
 
-  const handleAddToLibrary = () => {
+  const handleToggleLibrary = () => {
     if (!isLoggedIn) {
-      handleOpenLoginModal();
+      dispatch(openLoginModal());
     } else {
-      console.log(`Added "${book.title}" to My Library`);
+      dispatch(toggleSavedState(book));
     }
   };
 
@@ -208,7 +252,12 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
       {loginModalOpen && <Modal />}
 
       <div className="row">
-        <audio src={book.audioLink}></audio>
+        <audio
+          ref={audioRef}
+          src={book.audioLink}
+          onLoadedMetadata={handleLoadedMetadata}
+          onTimeUpdate={handleTimeUpdate}
+        ></audio>
         <div className="container">
           <div className="inner__wrapper">
             <div className="inner__book">
@@ -258,7 +307,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                         <path d="M686.7 638.6L544.1 535.5V288c0-4.4-3.6-8-8-8H488c-4.4 0-8 3.6-8 8v275.4c0 2.6 1.2 5 3.3 6.5l165.4 120.6c3.6 2.6 8.6 1.8 11.2-1.7l28.6-39c2.6-3.7 1.8-8.7-1.8-11.2z"></path>
                       </svg>
                     </div>
-                    <div className="inner-book__duration">03:22</div>
+                    <div className="inner-book__duration">{book.duration}</div>
                   </div>
                   <div className="inner-book__description">
                     <div className="inner-book__icon">
@@ -341,27 +390,39 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                   <div className="inner-book__read--text">Listen</div>
                 </button>
               </div>
-              <div
-                className="inner-book__bookmark"
-                onClick={handleAddToLibrary}
-              >
-                <div className="inner-book__bookmark--icon">
-                  <svg
-                    stroke="currentColor"
-                    fill="currentColor"
-                    strokeWidth="0"
-                    viewBox="0 0 16 16"
-                    height="1em"
-                    width="1em"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v13.5a.5.5 0 0 1-.777.416L8 13.101l-5.223 2.815A.5.5 0 0 1 2 15.5V2zm2-1a1 1 0 0 0-1 1v12.566l4.723-2.482a.5.5 0 0 1 .554 0L13 14.566V2a1 1 0 0 0-1-1H4z"></path>
-                  </svg>
+
+              {isLoggedIn && (
+                <div
+                  className="inner-book__bookmark"
+                  onClick={handleToggleLibrary}
+                >
+                  <div className="inner-book__bookmark--icon">
+                    <svg
+                      stroke="currentColor"
+                      fill="#0365f2"
+                      strokeWidth="0"
+                      viewBox="0 0 16 16"
+                      height="1em"
+                      width="1em"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d={
+                          isSaved
+                            ? "M2 2v13.5a.5.5 0 0 0 .74.439L8 13.069l5.26 2.87A.5.5 0 0 0 14 15.5V2a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"
+                            : "M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v13.5a.5.5 0 0 1-.777.416L8 13.101l-5.223 2.815A.5.5 0 0 1 2 15.5V2zm2-1a1 1 0 0 0-1 1v12.566l4.723-2.482a.5.5 0 0 1 .554 0L13 14.566V2a1 1 0 0 0-1-1H4z"
+                        }
+                      ></path>
+                    </svg>
+                  </div>
+                  <div className="inner-book__bookmark--text">
+                    {isSaved
+                      ? "Saved in My Library"
+                      : "Add title to My Library"}
+                  </div>
                 </div>
-                <div className="inner-book__bookmark--text">
-                  Add title to My Library
-                </div>
-              </div>
+              )}
+
               <div className="inner-book__secondary--title">
                 What's it about?
               </div>
@@ -391,3 +452,5 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
     </div>
   );
 }
+
+export default Page;

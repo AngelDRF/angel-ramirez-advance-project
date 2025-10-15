@@ -1,14 +1,20 @@
 "use client";
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "../redux/Store";
 import { openLoginModal } from "../redux/Modal";
+import { markAsFinished } from "../redux/Finished";
+import { updateBookDuration } from "../redux/Library";
+import { TimeFormat } from "./TimeFormat";
 
 interface AudioPlayerProps {
   audioLink: string;
   imageLink: string;
   title: string;
   author: string;
+  bookId: string;
+  subTitle: string;
+  averageRating: number;
   isLoading: boolean;
 }
 
@@ -17,6 +23,9 @@ export default function AudioPlayer({
   imageLink,
   title,
   author,
+  bookId,
+  subTitle,
+  averageRating,
   isLoading,
 }: AudioPlayerProps) {
   const dispatch = useDispatch<AppDispatch>();
@@ -77,11 +86,44 @@ export default function AudioPlayer({
     }
   };
 
-  const formatTime = (time: number) => {
-    const minutes = Math.floor(time / 60);
-    const seconds = Math.floor(time % 60);
-    return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      const audioDuration = audioRef.current.duration;
+      setDuration(audioDuration);
+
+      dispatch(
+        updateBookDuration({ id: bookId, duration: TimeFormat(audioDuration) })
+      );
+    }
   };
+
+  const handleAudioEnd = () => {
+    dispatch(
+      markAsFinished({
+        id: bookId,
+        audioLink,
+        imageLink,
+        title,
+        author,
+        subTitle,
+        averageRating,
+        duration: TimeFormat(duration),
+      })
+    );
+  };
+
+  useEffect(() => {
+    const audioElement = audioRef.current;
+    if (audioElement) {
+      audioElement.addEventListener("ended", handleAudioEnd);
+    }
+
+    return () => {
+      if (audioElement) {
+        audioElement.removeEventListener("ended", handleAudioEnd);
+      }
+    };
+  }, [audioRef]);
 
   return (
     <div className="audio__wrapper">
@@ -91,9 +133,7 @@ export default function AudioPlayer({
         onTimeUpdate={() =>
           setCurrentTime(audioRef.current ? audioRef.current.currentTime : 0)
         }
-        onLoadedMetadata={() =>
-          setDuration(audioRef.current ? audioRef.current.duration : 0)
-        }
+        onLoadedMetadata={handleLoadedMetadata}
       ></audio>
 
       {isLoading ? (
@@ -214,7 +254,7 @@ export default function AudioPlayer({
         </div>
       </div>
       <div className="audio__progress--wrapper">
-        <div className="audio__time place">{formatTime(currentTime)}</div>
+        <div className="audio__time place">{TimeFormat(currentTime)}</div>
         <input
           type="range"
           className="audio__progress--bar"
@@ -222,7 +262,7 @@ export default function AudioPlayer({
           max={duration}
           onChange={handleProgressChange}
         />
-        <div className="audio__time total">{formatTime(duration)}</div>
+        <div className="audio__time total">{TimeFormat(duration)}</div>
       </div>
     </div>
   );
